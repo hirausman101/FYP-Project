@@ -1,0 +1,8 @@
+# Ignore node_modules and build files
+MyApp22/node_modules/
+MyApp22/android/.gradle/
+MyApp22/android/app/build/
+MyApp22/ios/Pods/
+*.log
+*.tmp
+*.rar
