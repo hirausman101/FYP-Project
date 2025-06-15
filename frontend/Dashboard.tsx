@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Dimensions, ScrollView, processColor, Image, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Alert, ActivityIndicator, Dimensions, ScrollView, processColor, Image, Pressable } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { LineChart, BarChart, PieChart } from 'react-native-charts-wrapper';
-import { useNavigation } from '@react-navigation/native';
-
-
+import { useNavigation, useRoute } from '@react-navigation/native';
+import API_BASE_URL  from './config'; // Adjust the import path as necessary
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import mongoose from 'mongoose';
 
 interface Item {
+  patient_id:string;
   Name: string;
   Gender: string;
   Status: string;
@@ -20,6 +22,8 @@ interface Notification{
 }
 
 const Dashboard = () => { 
+  const route = useRoute();
+  const {email, id} = route.params || {};
   const navigation = useNavigation();
  
 
@@ -53,21 +57,38 @@ const Dashboard = () => {
 
 
   useEffect(() => {
+ 
     const fetchPatients = async () => {
-      try {
-        const response = await fetch('http://192.168.100.9:5000/items'); 
-        const data = await response.json();
-        console.log('Fetched patients:', data);
-        setPatients(data);
-      } catch (error) {
-        console.error('Error fetching patients:', error);
+  try {
+    const token = await AsyncStorage.getItem("token"); // or however you store the token
+    console.log('Fetching patients with:', email, id, 'token:', token);
+    const response = await fetch(
+      `${API_BASE_URL}/profile?email=${email}&id=${id}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
       }
-    };
-    
+    );
+    const data = await response.json();
+    console.log('Profile API response:', data);
+    if (data.status === "ok" && data.data && data.data.items_id) {
+      setPatients(data.data.items_id);
+      console.log('Set patients:', data.data.items_id);
+    } else {
+      setPatients([]);
+      console.log('No patients found in response');
+    }
+  } catch (error) {
+    console.error('Error fetching patients:', error);
+    setPatients([]);
+  }
+};
 
     const fetchNotifications = async () => {
       try {
-        const response = await fetch('http://192.168.100.9:5000/notifications');
+        const response = await fetch(`${API_BASE_URL}/notifications`);
         const data = await response.json();
         console.log('Fetched notifications:', data);
         setNotifications(data);
@@ -148,6 +169,21 @@ const Dashboard = () => {
     },
   };
 
+      const handleLogout = async () => {
+    try {
+      await AsyncStorage.removeItem("token");
+      await AsyncStorage.removeItem("isLoggedIn");
+      await AsyncStorage.removeItem("userType");
+      // Navigate to login or welcome screen
+      navigation.navigate('Login');
+    } catch (err) {
+      Alert.alert("Logout failed", "Please try again.");
+    }
+  };
+
+
+   
+
 
   return (
     <View style={styles.container}>
@@ -155,37 +191,39 @@ const Dashboard = () => {
         <Text style={{ marginLeft: 80, marginTop: 17, fontSize: 17 }}>Assigned Patients:</Text>
       </View>
       <View style={styles.grid}>
-        <View style={[styles.sideMenu, { width: 65 }]}>
-          {/* Side Menu Icons */}
-          <View style={[styles.profileIcon, { marginTop: 0 }]}>
-            <View style={styles.profileStatus}></View>
-          </View>
-          <View style={[styles.selectedIcon, { marginTop: 30 }]}>
-            <Icon name="search" style={[styles.Icon]} />
-          </View>
-          <View style={{ marginTop: 30 }}>
-               <Pressable onPress={() => navigation.navigate('PatientDetails')}>
-                <Icon name="people-outline" style={[styles.Icon]} />
-              </Pressable>
-          </View>
-          <View style={{ marginTop: 30 }}>
-            <Icon name="pie-chart-outline" style={[styles.Icon]} />
-          </View>
-          <View style={{ marginTop: 30 }}>
-            <Icon name="settings-outline" style={[styles.Icon]} />
-          </View>
-          <View style={{ marginTop: 300 }}>
-            <Icon name="exit-outline" style={[styles.Icon]} />
-          </View>
-          <View style={{ marginTop: 30 }}>
-            <Icon name="moon-outline" style={[styles.Icon]} />
-          </View>
-        </View>
+       <View style={[styles.sideMenu, { width: 65 }]}>
+                {/* Side Menu Icons */}
+                <View>
+                <Pressable onPress={()=> navigation.navigate('CaregiverProfile',{email:email,id:id}) } style={[styles.profileIcon, { marginTop: 0, marginBottom: 30 }]}>
+                  <View style={styles.profileStatus}></View>
+                </Pressable>
+                </View>
+                <View style={[{ marginTop: 30 }]}>
+                  <Pressable onPress={() => navigation.navigate('Dashboard',{email:email,id:id})}>
+                    <Icon name="home-outline" style={[styles.Icon]} />
+                  </Pressable>
+                </View>
+                <View style={{ marginTop: 30 }}>
+                  <Pressable onPress={() => navigation.navigate('PatientDetails',{email:email,id:id})}>
+                    <Icon name="people-outline" style={[styles.Icon]} />
+                  </Pressable>
+                </View>
+                
+            
+                <View style={{ marginTop: 80 }}>
+                   <Pressable onPress={handleLogout}>
+                    <Icon name="exit-outline" style={[styles.Icon]} />
+                   </Pressable>
+                </View>
+      
+              </View>
+
+
         <View style={[styles.mainContent, { marginLeft: 75 }]}>
         <ScrollView horizontal={true} showsHorizontalScrollIndicator={false}>
             <View style={styles.tabRows}>
               {patients.map((patient, index) => (
-                <View key={index} style={styles.tab}>
+                <Pressable onPress={() => navigation.navigate('Patient', { patientId: patient.patient_id , email:email, id:id})} key={index} style={styles.tab}>
                   <View style={{ flexDirection: 'row' }}>
                     <View style={[styles.patientIcon]}>
                       <Icon name="person-outline" size={15} color="black" />
@@ -213,7 +251,7 @@ const Dashboard = () => {
                       </Text>
                     </View>
                   </View>
-                </View>
+                </Pressable>
               ))}
               <View style={{ width: 30 }}></View>
             </View>
@@ -270,56 +308,56 @@ const Dashboard = () => {
             <View style={styles.notificationContainer}>
              
                         
-              <View style={styles.notificationColumn}>
-  {notifications.map((notification, index) => {
-    let icon = null;
-    if (notification.Title.toLowerCase().includes('tremor')) {
-      icon = (
-        <Image
-          source={require('./assets/alert.png')}
-          style={{ width: 10, height: 10, marginRight: 8 }}
-        />
-      );
-    } else if (notification.Title.toLowerCase().includes('medication')) {
-      icon = (
-        <Image
-          source={require('./assets/pill.png')}
-          style={{ width: 10, height: 10, marginRight: 8 }}
-        />
-      );
-    } else {
-      icon = (
-        <Icon name="notifications-outline" size={20} color="#5961b8" style={{ marginRight: 8 }} />
-      );
-    }
+            <View style={styles.notificationColumn}>
+              {notifications.map((notification, index) => {
+                let icon = null;
+                if (notification.Title.toLowerCase().includes('tremor')) {
+                  icon = (
+                    <Image
+                      source={require('./assets/alert.png')}
+                      style={{ width: 10, height: 10, marginRight: 8 }}
+                    />
+                  );
+                } else if (notification.Title.toLowerCase().includes('medication')) {
+                  icon = (
+                    <Image
+                      source={require('./assets/pill.png')}
+                      style={{ width: 10, height: 10, marginRight: 8 }}
+                    />
+                  );
+                } else {
+                  icon = (
+                    <Icon name="notifications-outline" size={20} color="#5961b8" style={{ marginRight: 8 }} />
+                  );
+                }
 
-    return (
-      <View key={index} style={[styles.notification, {
-        backgroundColor:
-          notification.Title === 'Tremor Spike Alert'
-            ? '#fcd3cc'
-            : notification.Title === 'Medication Reminder'
-            ? '#e3fcca'
-            : notification.Intensity === 'High'
-            ? '#fcd3cc'
-            : notification.Intensity === 'Medium'
-            ? '#fceccc'
-            : '#e3f6fc',
-      }]}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            {icon}
-            <Text style={styles.notificationTitle}>{notification.Title}</Text>
-          </View>
-          <Text style={styles.notificationText}>{getTimeDifference(notification.Time)} ago</Text>
-        </View>
-        <Text style={styles.notificationText}>Patient: {notification.Patient}</Text>
-        <Text style={styles.notificationText}>Intensity: {notification.Intensity}</Text>
-        <Text style={{ textAlign: 'right', fontSize: 6 }}>See more</Text>
-      </View>
-    );
-  })}
-</View>
+                return (
+                  <View key={index} style={[styles.notification, {
+                    backgroundColor:
+                      notification.Title === 'Tremor Spike Alert'
+                        ? '#fcd3cc'
+                        : notification.Title === 'Medication Reminder'
+                        ? '#e3fcca'
+                        : notification.Intensity === 'High'
+                        ? '#fcd3cc'
+                        : notification.Intensity === 'Medium'
+                        ? '#fceccc'
+                        : '#e3f6fc',
+                  }]}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        {icon}
+                        <Text style={styles.notificationTitle}>{notification.Title}</Text>
+                      </View>
+                      <Text style={styles.notificationText}>{getTimeDifference(notification.Time)} ago</Text>
+                    </View>
+                    <Text style={styles.notificationText}>Patient: {notification.Patient}</Text>
+                    <Text style={styles.notificationText}>Intensity: {notification.Intensity}</Text>
+                    <Text style={{ textAlign: 'right', fontSize: 6 }}>See more</Text>
+                  </View>
+                );
+              })}
+            </View>
              
             </View>
           </ScrollView>
@@ -333,7 +371,7 @@ const Dashboard = () => {
 
 const styles = StyleSheet.create({
 clickNotifications:{
-  backgroundColor: '#f5a542',
+  backgroundColor: '#ededeb',
   borderRadius: 10,
   alignItems: 'center',
   justifyContent: 'center',
@@ -376,7 +414,7 @@ clickNotifications:{
   },
   graphContiner: {
     width: Dimensions.get('window').width - 100, 
-    marginTop: 20,
+    marginTop: 10,
     marginBottom: 0,
     backgroundColor: 'white',
     borderRadius: 12,
@@ -401,7 +439,7 @@ clickNotifications:{
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginTop: 70,
-    marginBottom: 120,
+    marginBottom: 10,
   },
   tab: {
     width: 130,
@@ -414,6 +452,7 @@ clickNotifications:{
   },
   mainContent: {
     padding: 10,
+    paddingTop:30,
     width: '100%',
     height: '100%',
   },
@@ -473,8 +512,9 @@ clickNotifications:{
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
+    marginBottom: 50,
   },
-  profileIcon: {
+ profileIcon: {
     width: 40,
     height: 40,
     backgroundColor: '#e8eaf6',
@@ -491,7 +531,8 @@ clickNotifications:{
     backgroundColor: '#5961b8',
     borderRadius: 30,
   },
-  selectedIcon: {
+
+   selectedIcon: {
     width: 40,
     height: 40,
     backgroundColor: '#e8eaf6',
@@ -535,5 +576,6 @@ clickNotifications:{
     paddingTop: 2,
   },
 });
+
 
 export default Dashboard;
