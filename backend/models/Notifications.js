@@ -1,4 +1,4 @@
-const { models } = require("mongoose");
+const mongoose= require("mongoose");
 
 // Notification schema and routes (already defined)
 const notificationSchema = new mongoose.Schema({

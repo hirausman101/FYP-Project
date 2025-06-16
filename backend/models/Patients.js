@@ -6,6 +6,8 @@ const emergencyContactSchema = new mongoose.Schema({
   relation: String,
 });
 
+
+
 const patientSchema = new mongoose.Schema({
   _id: {
     type: mongoose.Schema.Types.ObjectId,
