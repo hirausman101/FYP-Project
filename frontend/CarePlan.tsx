@@ -1,8 +1,11 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Modal, View, Text, StyleSheet, Dimensions, ScrollView, Pressable, TouchableOpacity, Alert, TextInput } from 'react-native';
+import { Modal, View, Text, StyleSheet, Dimensions, ScrollView, Pressable, TouchableOpacity, Alert, TextInput, ActivityIndicator } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import API_BASE_URL from './config';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+
 
 const CarePlan = ({ route }) => {
   const navigation = useNavigation();
@@ -17,6 +20,9 @@ const CarePlan = ({ route }) => {
   const [showNotesModal, setShowNotesModal] = useState(false);
   const [editId, setEditId] = useState(null);
   const [editContent, setEditContent] = useState('');
+  const [showAllNotesModal, setShowAllNotesModal] = useState(false);
+  const [showAddNotesModal, setShowAddNotesModal] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   // --- Notes logic ---
   const fetchNotes = useCallback(async () => {
@@ -30,15 +36,19 @@ const CarePlan = ({ route }) => {
   }, [patient_id]);
 
   const handleAddNote = async () => {
+    console.log('Adding note:', content); // Debugging log
+    console.log('Patient ID:', patient_id); // Debugging log
+    console.log('Caregiver ID:', id); // Debugging log
     if (!content.trim()) return;
     try {
       await fetch(`${API_BASE_URL}/notes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          patientId: patient_id,      // camelCase for backend
-          caregiverId: id,            // camelCase for backend
           content,
+          patient_id: patient_id,      // camelCase for backend
+          caregiver_id: id          // camelCase for backend
+          
         }),
       });
       setContent('');
@@ -77,31 +87,33 @@ const CarePlan = ({ route }) => {
   useEffect(() => {
     if (!patient_id) return;
 
-    const fetchDosageStatus = async () => {
+    const fetchAll = async () => {
+      setLoading(true);
       try {
-        const response = await fetch(`${API_BASE_URL}/dosage_status/${patient_id}`);
-        if (!response.ok) throw new Error('Dosage status not found');
-        const data = await response.json();
-        setDosageStatus(data);
-      } catch (error) {
-        setDosageStatus([]);
-      }
-    };
-
-    const fetchPatient = async () => {
-      try {
-        const response = await fetch(`${API_BASE_URL}/patientData/${patient_id}`);
-        if (!response.ok) throw new Error('Patient not found');
-        const data = await response.json();
-        setPatient(data);
+        await Promise.all([
+          (async () => {
+            const response = await fetch(`${API_BASE_URL}/patientData/${patient_id}`);
+            if (!response.ok) throw new Error('Patient not found');
+            const data = await response.json();
+            setPatient(data);
+          })(),
+          (async () => {
+            const response = await fetch(`${API_BASE_URL}/dosage_status/${patient_id}`);
+            if (!response.ok) throw new Error('Dosage status not found');
+            const data = await response.json();
+            setDosageStatus(data);
+          })(),
+          fetchNotes(),
+        ]);
       } catch (error) {
         setPatient(null);
+        setDosageStatus([]);
+      } finally {
+        setLoading(false);
       }
     };
 
-    fetchPatient();
-    fetchDosageStatus();
-    fetchNotes();
+    fetchAll();
   }, [patient_id, fetchNotes]);
 
   // Refresh notes when returning from NotesPage
@@ -124,13 +136,13 @@ const CarePlan = ({ route }) => {
     });
   });
 
-  if (!patient) {
-    return (
-      <View style={styles.container}>
-        <Text>Loading patient data...</Text>
-      </View>
-    );
-  }
+  if (loading) {
+  return (
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
+      <ActivityIndicator size="large" color="#2a4fbf" />
+    </View>
+  );
+}
 
      const handleLogout = async () => {
     try {
@@ -157,33 +169,35 @@ const CarePlan = ({ route }) => {
                                <View style={styles.profileStatus}></View>
                              </Pressable>
                              </View>
-                                 <View style={[{ marginTop: 30 }]}>
+                                 <View style={[{ marginTop: 50 }]}>
                                    <Pressable onPress={() => navigation.navigate('Dashboard',{email:email,id:id})}>
                                      <Icon name="home-outline" style={[styles.Icon]} />
                                    </Pressable>
                                  </View>
-                                 <View style={{ marginTop: 30 }}>
+                                 <View style={{ marginTop: 50 }}>
                                    <Pressable onPress={() => navigation.navigate('PatientDetails',{email:email,id:id})}>
                                      <Icon name="people-outline" style={[styles.Icon]} />
                                    </Pressable>
                                  </View>
               
-                                  <View style={{ marginTop: 30 }}>
+                                  <View style={{ marginTop: 50 }}>
                                     <Pressable onPress={() => navigation.navigate('CarePlan',{patient_id: patient._id, email:email,id:id})}>
-                                     <Icon name="nutrition-outline" style={[styles.Icon]} />
+                                     <Icon name="nutrition-outline" style={[styles.selectedIcon]} />
                                     </Pressable>
                                  </View>
-                                 <View style={{ marginTop: 30 }}>
+                                 <View style={{ marginTop: 50 }}>
                                     <Pressable onPress={() => navigation.navigate('Location',{patientId: patient._id})}>
                                      <Icon name="location-outline" style={[styles.Icon]} />
                                     </Pressable>
                                  </View>
-                             
-                                 <View style={{ marginTop: 80 }}>
-                                    <Pressable onPress={handleLogout}>
-                                     <Icon name="exit-outline" style={[styles.Icon]} />
-                                    </Pressable>
-                                 </View>
+                             <View style={{ flex: 1 }} />
+                                             {/* Exit Icon */}
+                                             <View style={{ marginBottom: 100 }}>
+                                                <Pressable onPress={handleLogout}>
+                                                 <Icon name="exit-outline" style={[styles.Icon]} />
+                                                </Pressable>
+                                             </View>
+                                   
                        
                                </View>
 
@@ -268,6 +282,8 @@ const CarePlan = ({ route }) => {
         </Modal>
 
         <ScrollView style={[styles.mainContent]}>
+          <View style={{ flexDirection: 'row', gap: 15, marginBottom: 15 }}>
+          {/* Info Card */}
           <View style={styles.infoCard}>
             <View style={{ flexDirection: 'column' }}>
               <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 40, marginBottom: 5 }}>
@@ -287,7 +303,69 @@ const CarePlan = ({ route }) => {
             </View>
           </View>
 
-          <Pressable onPress={() => { setShowDosageModal(true); }}>
+          {/* Notes Preview Card */}
+          <Pressable
+            onPress={() => setShowAllNotesModal(true)}
+            style={{
+              backgroundColor: '#e5f0ff',
+              borderRadius: 12,
+              padding: 12,
+              width: 150,
+              height:130,
+              justifyContent: 'flex-start',
+              shadowColor: '#000',
+              shadowOpacity: 0.06,
+              shadowRadius: 2,
+              elevation: 1,
+              marginLeft: 0,
+            }}
+          >
+            <Text style={{ fontWeight: 'bold', fontSize: 13, color: '#2a4fbf', marginBottom: 4 }}>
+              Notes
+            </Text>
+            {notes.length > 0 ? (
+              <>
+                {notes.slice(0, 2).map((note, idx) => (
+                  <View
+                    key={note._id}
+                    style={{
+                      backgroundColor: 'white',
+                      borderRadius: 8,
+                      padding: 6,
+                      marginBottom: 4,
+                    }}
+                  >
+                    <Text
+                      numberOfLines={1}
+                      style={{
+                        color: '#23395D',
+                        fontSize: 12,
+                        marginBottom: 2,
+                      }}
+                    >
+                      {note.content}
+                    </Text>
+                    <Text style={{ color: '#888', fontSize: 10 }}>
+                      {new Date(note.timestamp).toLocaleString()}
+                    </Text>
+                  </View>
+                ))}
+                {notes.length > 2 && (
+                  <Text style={{ color: '#2a4fbf', fontSize: 11, textAlign: 'right' }}>
+                    +{notes.length - 2} more, tap to view all
+                  </Text>
+                )}
+              </>
+            ) : (
+              <Text style={{ color: '#888', fontSize: 12, marginTop: 8 }}>
+                No notes yet. Tap to add!
+              </Text>
+            )}
+          </Pressable>
+        </View>
+
+          {/* Medication Block */}
+          <Pressable onPress={() => setShowDosageModal(true)}>
             <View style={styles.medicationBlock}>
               <View style={styles.tableHeader}>
                 <Text style={[styles.headerCell, { flex: 2 }]}>Medication</Text>
@@ -295,83 +373,184 @@ const CarePlan = ({ route }) => {
                 <Text style={styles.headerCell}>Timing</Text>
                 <Text style={styles.headerCell}>Status</Text>
               </View>
-              {allStatusRows.slice(0, 2).map((row, idx) => (
-                <View key={idx} style={styles.patientRow}>
-                  <Text style={[styles.patientCell, { flex: 2 }]}>{row.medication}</Text>
-                  <Text style={styles.patientCell}>{row.dosage}</Text>
-                  <Text style={styles.patientCell}>{row.timing}</Text>
-                  <View style={[styles.patientCell, { flexDirection: 'row', alignItems: 'center' }]}>
-                    {row.status === 'Taken' && (
-                      <Icon name="checkmark" size={16} color="green" />
-                    )}
-                    {row.status === 'Missed' && (
-                      <Icon name="close" size={16} color="red" />
-                    )}
-                    {row.status === 'null' && (
-                      <Icon name="remove" size={16} color="black" />
-                    )}
-                  </View>
-                </View>
-              ))}
+              {allStatusRows.length === 0 ? (
+                <Text style={{ color: '#888', fontSize: 12, padding: 8 }}>No medications found.</Text>
+              ) : (
+                <>
+                  {allStatusRows.slice(0, 2).map((row, idx) => (
+                    <View key={idx} style={styles.patientRow}>
+                      <Text style={[styles.patientCell, { flex: 2 }]}>{row.medication}</Text>
+                      <Text style={styles.patientCell}>{row.dosage}</Text>
+                      <Text style={styles.patientCell}>{row.timing}</Text>
+                      <View style={[styles.patientCell, { flexDirection: 'row', alignItems: 'center' }]}>
+                        {row.status === 'Taken' && (
+                          <Icon name="checkmark" size={16} color="green" />
+                        )}
+                        {row.status === 'Missed' && (
+                          <Icon name="close" size={16} color="red" />
+                        )}
+                        {(row.status == null || row.status === '') && (
+                          <Icon name="remove" size={16} color="black" />
+                        )}
+                      </View>
+                    </View>
+                  ))}
+                  {allStatusRows.length > 2 && (
+                    <Text style={{ color: '#2a4fbf', fontSize: 11, marginTop: 4, alignSelf: 'flex-end' }}>
+                      +{allStatusRows.length - 2} more...
+                    </Text>
+                  )}
+                </>
+              )}
             </View>
           </Pressable>
-          <View style={{ height: 70 }}></View>
+
+
+            <Text style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 10 }}>Daily Routine & Status:</Text>
+           
+              <View style={{
+                backgroundColor: '#e5e3ff',
+                marginBottom: 15,
+                marginTop: 20,
+                borderRadius: 16,
+                padding: 14,
+                width: Dimensions.get('window').width - 93,
+                minHeight: 110,
+                justifyContent: 'space-between',
+                shadowColor: '#000',
+                shadowOpacity: 0.06,
+                shadowRadius: 2,
+                elevation: 2,
+              }}>
+                <Text style={{ fontWeight: 'bold', fontSize: 13, marginBottom: 6 }}>Physical Therapy and Exercise:</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
+                  <Icon name="checkmark-circle" size={16} color="#4caf50" style={{ marginRight: 4 }} />
+                  <Text style={{ fontSize: 11 }}>Balance Training</Text>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
+                  <Icon name="checkmark-circle" size={16} color="#4caf50" style={{ marginRight: 4 }} />
+                  <Text style={{ fontSize: 11 }}>Memory Exercise</Text>
+                </View>
+                <View style={{ position: 'absolute', right: 10, bottom: 10 }}>
+                  <View style={{
+                    backgroundColor: '#fff',
+                    borderRadius: 20,
+                    width: 36,
+                    height: 36,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    shadowColor: '#000',
+                    shadowOpacity: 0.08,
+                    shadowRadius: 2,
+                    elevation: 2,
+                  }}>
+                    <Text style={{ fontWeight: 'bold', color: '#7b63dd', fontSize: 13 }}>20%</Text>
+                  </View>
+                </View>
+                <Icon name="fitness-outline" size={28} color="#7b63dd" style={{ position: 'absolute', top: 10, right: 10, opacity: 0.3 }} />
+              </View>
+
+              <View style={{
+                backgroundColor: '#ffeaea',
+                marginTop: 10,
+                marginBottom: 15,
+                borderRadius: 16,
+                padding: 14,
+                width: Dimensions.get('window').width - 93,
+                minHeight: 110,
+                justifyContent: 'space-between',
+                shadowColor: '#000',
+                shadowOpacity: 0.06,
+                shadowRadius: 2,
+                elevation: 2,
+              }}>
+                <Text style={{ fontWeight: 'bold', fontSize: 13, marginBottom: 6 }}>Dietary Guidelines:</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
+                  <Icon name="ellipse" size={10} color="#f79902" style={{ marginRight: 4 }} />
+                  <Text style={{ fontSize: 11 }}>Breakfast:</Text>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
+                  <Icon name="ellipse" size={10} color="#f79902" style={{ marginRight: 4 }} />
+                  <Text style={{ fontSize: 11 }}>Lunch:</Text>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
+                  <Icon name="ellipse" size={10} color="#f79902" style={{ marginRight: 4 }} />
+                  <Text style={{ fontSize: 11 }}>Dinner:</Text>
+                </View>
+                <View style={{ position: 'absolute', right: 10, bottom: 10 }}>
+                  <View style={{
+                    backgroundColor: '#fff',
+                    borderRadius: 20,
+                    width: 36,
+                    height: 36,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    shadowColor: '#000',
+                    shadowOpacity: 0.08,
+                    shadowRadius: 2,
+                    elevation: 2,
+                  }}>
+                    <Text style={{ fontWeight: 'bold', color: '#f79902', fontSize: 13 }}>20%</Text>
+                  </View>
+                </View>
+                <Icon name="restaurant-outline" size={28} color="#f79902" style={{ position: 'absolute', top: 10, right: 10, opacity: 0.3 }} />
+              </View>
+           
+           
+              <View style={{
+                backgroundColor: '#fff',
+                borderRadius: 12,
+                padding: 10,
+                flex: 1,
+                marginRight: 8,
+                marginTop:20,
+                minHeight: 50,
+                justifyContent: 'center',
+                shadowColor: '#000',
+                shadowOpacity: 0.06,
+                shadowRadius: 2,
+                elevation: 1,
+              }}>
+                <Text style={{ fontSize: 13, fontWeight: 'bold', marginBottom: 4, marginTop:20}}>Check Appointments:</Text>
+                <View style={{
+                  backgroundColor: '#f0f0f0',
+                  borderRadius: 8,
+                  paddingVertical: 6,
+                  paddingHorizontal: 10,
+                  alignSelf: 'flex-start',
+                }}>
+                  <Text style={{ fontSize: 12, color: '#333' }}>Today's Appointment</Text>
+                </View>
+              </View>
+         
+
         </ScrollView>
+      </View>
 
-       {/* Notes Section */}
-<View style={{ marginTop: 20 }}>
-  <Text style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 10 }}>Notes</Text>
-  <TextInput
-    style={{
-      color: '#23395D',
-      backgroundColor: '#F0F4FF',
-      borderWidth: 1,
-      borderColor: 'black',
-      padding: 8,
-      marginBottom: 10,
-      borderRadius: 30,
-    }}
-    multiline
-    placeholder='Write a note here :)'
-    placeholderTextColor='#A0B3D6'
-    value={content}
-    onChangeText={setContent}
-  />
-  <TouchableOpacity
-    style={{
-      backgroundColor: '#7886C7',
-      borderRadius: 30,
-      padding: 10,
-      width: '50%',
-      alignSelf: 'center',
-      marginBottom: 20,
-    }}
-    onPress={handleAddNote}
-  >
-    <Text style={{ color: 'black', fontWeight: 'bold', fontSize: 18, textAlign: 'center' }}>
-      Add Note
-    </Text>
-  </TouchableOpacity>
-
-  <ScrollView style={{ maxHeight: 300 }}>
-    {notes.length === 0 && (
-      <Text style={{ textAlign: 'center', color: '#888', marginVertical: 20 }}>
-        No notes yet. Add a note!
-      </Text>
-    )}
-    {notes.map(note => (
-      <View
-        key={note._id}
-        style={{
-          padding: 10,
-          borderWidth: 1,
-          borderColor: '#ccc',
-          borderRadius: 8,
-          marginBottom: 15,
-        }}
+      {/* --- Modal for All Notes --- */}
+      <Modal
+        visible={showAllNotesModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowAllNotesModal(false)}
       >
-        {editId === note._id ? (
-          <>
+        <View style={{
+          flex: 1,
+          backgroundColor: 'rgba(0,0,0,0.4)',
+          justifyContent: 'center',
+          alignItems: 'center'
+        }}>
+          <View style={{
+            backgroundColor: '#fff',
+            borderRadius: 14,
+            padding: 18,
+            width: '90%',
+            maxHeight: '80%',
+            elevation: 5,
+          }}>
+            <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 10, color: '#2a4fbf' }}>
+              Notes
+            </Text>
             <TextInput
               style={{
                 color: '#23395D',
@@ -382,105 +561,323 @@ const CarePlan = ({ route }) => {
                 marginBottom: 10,
                 borderRadius: 30,
               }}
-              value={editContent}
-              onChangeText={setEditContent}
               multiline
+              placeholder='Write a note here :)'
+              placeholderTextColor='#A0B3D6'
+              value={content}
+              onChangeText={setContent}
             />
             <TouchableOpacity
               style={{
-                backgroundColor: '#007bff',
-                padding: 8,
-                borderRadius: 30,
-                marginBottom: 5,
-                width: '65%',
+                backgroundColor: '#2a4fbf',
+                borderRadius: 8,
+                paddingVertical: 10,
+                paddingHorizontal: 18,
                 alignSelf: 'center',
+                marginBottom: 10,
+                flexDirection: 'row',
                 alignItems: 'center',
+                marginTop: 5,
               }}
+              onPress={handleAddNote}
+            >
+              <Icon name="add-circle-outline" size={20} color="#fff" style={{ marginRight: 6 }} />
+              <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 15, textAlign: 'center' }}>
+                Add Note
+              </Text>
+            </TouchableOpacity>
+            <ScrollView style={{ maxHeight: 200 }}>
+              {notes.length === 0 && (
+                <Text style={{ textAlign: 'center', color: '#888', marginVertical: 20 }}>
+                  No notes yet. Add a note!
+                </Text>
+              )}
+              {notes.map(note => (
+                <View
+                  key={note._id}
+                  style={{
+                    backgroundColor: '#f5f7fa',
+                    borderRadius: 12,
+                    padding: 12,
+                    marginBottom: 12,
+                    shadowColor: '#000',
+                    shadowOpacity: 0.04,
+                    shadowRadius: 2,
+                    elevation: 1,
+                    borderWidth: 1,
+                    borderColor: '#e0e0e0',
+                  }}
+                >
+                  {editId === note._id ? (
+        <>
+          <TextInput
+            value={editContent}
+            onChangeText={setEditContent}
+            multiline
+            style={{
+              borderWidth: 1,
+              borderColor: '#2a4fbf',
+              borderRadius: 8,
+              padding: 8,
+              marginBottom: 8,
+              color: '#222',
+            }}
+          />
+          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 10 }}>
+            <TouchableOpacity
               onPress={() => saveEdit(note._id)}
+              style={{
+                backgroundColor: '#4caf50',
+                borderRadius: 8,
+                paddingVertical: 6,
+                paddingHorizontal: 14,
+                marginRight: 8,
+              }}
             >
               <Text style={{ color: '#fff', fontWeight: 'bold' }}>Save</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={{
-                backgroundColor: '#007bff',
-                padding: 8,
-                borderRadius: 30,
-                marginBottom: 5,
-                width: '65%',
-                alignSelf: 'center',
-                alignItems: 'center',
+              onPress={() => {
+                setEditId(null);
+                setEditContent('');
               }}
-              onPress={() => setEditId(null)}
+              style={{
+                backgroundColor: '#ccc',
+                borderRadius: 8,
+                paddingVertical: 6,
+                paddingHorizontal: 14,
+              }}
             >
-              <Text style={{ color: '#fff', fontWeight: 'bold' }}>Cancel</Text>
+              <Text style={{ color: '#333', fontWeight: 'bold' }}>Cancel</Text>
             </TouchableOpacity>
-          </>
-        ) : (
-          <>
-            <Text style={{ fontSize: 16, marginBottom: 5 }}>{note.content}</Text>
-            <Text style={{ fontSize: 12, color: '#777', marginBottom: 10 }}>
-              {new Date(note.timestamp).toLocaleString()}
-            </Text>
+          </View>
+        </>
+      ) : (
+        <>
+          <Text style={{ fontSize: 16, marginBottom: 5 }}>{note.content}</Text>
+          <Text style={{ fontSize: 12, color: '#777', marginBottom: 10 }}>
+            {new Date(note.timestamp).toLocaleString()}
+          </Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 10 }}>
             <TouchableOpacity
-              style={{
-                backgroundColor: '#007bff',
-                padding: 8,
-                borderRadius: 30,
-                marginBottom: 5,
-                width: '65%',
-                alignSelf: 'center',
-                alignItems: 'center',
-              }}
               onPress={() => {
                 setEditId(note._id);
                 setEditContent(note.content);
               }}
+              style={{ marginRight: 8 }}
             >
-              <Text style={{ color: '#fff', fontWeight: 'bold' }}>Edit</Text>
+              <Icon name="create-outline" size={20} color="#2a4fbf" />
             </TouchableOpacity>
             <TouchableOpacity
-              style={{
-                backgroundColor: '#dc3545',
-                padding: 8,
-                borderRadius: 30,
-                marginBottom: 5,
-                width: '65%',
-                alignSelf: 'center',
-                alignItems: 'center',
-              }}
               onPress={() => deleteNote(note._id)}
             >
-              <Text style={{ color: '#fff', fontWeight: 'bold' }}>Delete</Text>
+              <Icon name="trash-outline" size={20} color="#e53935" />
             </TouchableOpacity>
-          </>
-        )}
-      </View>
-    ))}
-  </ScrollView>
-</View>
-      </View>
+          </View>
+        </>
+      )}
+                </View>
+              ))}
+            </ScrollView>
+            <TouchableOpacity
+              style={{
+                backgroundColor: '#2a4fbf',
+                borderRadius: 30,
+                padding: 10,
+                width: '50%',
+                alignSelf: 'center',
+                marginTop: 10,
+              }}
+              onPress={() => setShowAllNotesModal(false)}
+            >
+              <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16, textAlign: 'center' }}>
+                Close
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* --- Modal for Add Note --- */}
+      <Modal
+        visible={showAddNotesModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowAddNotesModal(false)}
+      >
+        <View style={{
+          flex: 1,
+          backgroundColor: 'rgba(0,0,0,0.4)',
+          justifyContent: 'center',
+          alignItems: 'center'
+        }}>
+          <View style={{
+            backgroundColor: '#fff',
+            borderRadius: 14,
+            padding: 18,
+            width: '90%',
+            maxHeight: '80%',
+            elevation: 5,
+          }}>
+            <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 10, color: '#2a4fbf' }}>
+              Add Note
+            </Text>
+            <TextInput
+              style={{
+                color: '#23395D',
+                backgroundColor: '#F0F4FF',
+                borderWidth: 1,
+                borderColor: 'black',
+                padding: 8,
+                marginBottom: 10,
+                borderRadius: 30,
+              }}
+              multiline
+              placeholder='Write a note here :)'
+              placeholderTextColor='#A0B3D6'
+              value={content}
+              onChangeText={setContent}
+            />
+            <TouchableOpacity
+              style={{
+                backgroundColor: '#2a4fbf',
+                borderRadius: 8,
+                paddingVertical: 10,
+                paddingHorizontal: 18,
+                alignSelf: 'center',
+                marginBottom: 10,
+                flexDirection: 'row',
+                alignItems: 'center',
+                marginTop: 5,
+              }}
+              onPress={() => {
+                handleAddNote();
+                setShowAddNotesModal(false);
+              }}
+            >
+              <Icon name="add-circle-outline" size={20} color="#fff" style={{ marginRight: 6 }} />
+              <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 15, textAlign: 'center' }}>
+                Add Note
+              </Text>
+            </TouchableOpacity>
+            <ScrollView style={{ maxHeight: 200 }}>
+              {notes.length === 0 && (
+                <Text style={{ textAlign: 'center', color: '#888', marginVertical: 20 }}>
+                  No notes yet. Add a note!
+                </Text>
+              )}
+              {notes.map(note => (
+                <View
+                  key={note._id}
+                  style={{
+                    backgroundColor: '#f5f7fa',
+                    borderRadius: 12,
+                    padding: 12,
+                    marginBottom: 12,
+                    shadowColor: '#000',
+                    shadowOpacity: 0.04,
+                    shadowRadius: 2,
+                    elevation: 1,
+                    borderWidth: 1,
+                    borderColor: '#e0e0e0',
+                  }}
+                >
+                  {editId === note._id ? (
+        <>
+          <TextInput
+            value={editContent}
+            onChangeText={setEditContent}
+            multiline
+            style={{
+              borderWidth: 1,
+              borderColor: '#2a4fbf',
+              borderRadius: 8,
+              padding: 8,
+              marginBottom: 8,
+              color: '#222',
+            }}
+          />
+          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 10 }}>
+            <TouchableOpacity
+              onPress={() => saveEdit(note._id)}
+              style={{
+                backgroundColor: '#4caf50',
+                borderRadius: 8,
+                paddingVertical: 6,
+                paddingHorizontal: 14,
+                marginRight: 8,
+              }}
+            >
+              <Text style={{ color: '#fff', fontWeight: 'bold' }}>Save</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => {
+                setEditId(null);
+                setEditContent('');
+              }}
+              style={{
+                backgroundColor: '#ccc',
+                borderRadius: 8,
+                paddingVertical: 6,
+                paddingHorizontal: 14,
+              }}
+            >
+              <Text style={{ color: '#333', fontWeight: 'bold' }}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </>
+      ) : (
+        <>
+          <Text style={{ fontSize: 16, marginBottom: 5 }}>{note.content}</Text>
+          <Text style={{ fontSize: 12, color: '#777', marginBottom: 10 }}>
+            {new Date(note.timestamp).toLocaleString()}
+          </Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 10 }}>
+            <TouchableOpacity
+              onPress={() => {
+                setEditId(note._id);
+                setEditContent(note.content);
+              }}
+              style={{ marginRight: 8 }}
+            >
+              <Icon name="create-outline" size={20} color="#2a4fbf" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => deleteNote(note._id)}
+            >
+              <Icon name="trash-outline" size={20} color="#e53935" />
+            </TouchableOpacity>
+          </View>
+        </>
+      )}
+                </View>
+              ))}
+            </ScrollView>
+            <TouchableOpacity
+              style={{
+                backgroundColor: '#2a4fbf',
+                borderRadius: 30,
+                padding: 10,
+                width: '50%',
+                alignSelf: 'center',
+                marginTop: 10,
+              }}
+              onPress={() => setShowAddNotesModal(false)}
+            >
+              <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16, textAlign: 'center' }}>
+                Close
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   // ... your styles unchanged ...
-  graphContiner: {
-    width: Dimensions.get('window').width - 93,
-    marginTop: 10,
-    marginBottom: 0,
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 5,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
+
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -586,12 +983,16 @@ const styles = StyleSheet.create({
     borderRadius: 30,
   },
   selectedIcon: {
-    width: 40,
-    height: 40,
-    backgroundColor: '#e8eaf6',
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
+  width: 40,
+  height: 40,
+  fontSize: 20,
+  color: '#5961b8',
+  backgroundColor: '#e8eaf6',
+  borderRadius: 10,
+  textAlign: 'center',
+  justifyContent: 'center',
+  alignItems: 'center',
+  paddingTop: 10,
   },
   Icon: {
     fontSize: 20,
@@ -621,8 +1022,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#2d53c8',
     borderRadius: 15,
     paddingLeft: 10,
-    width: 145,
-    height: 130,
+    width: 150,
+    height:130,
     justifyContent: 'flex-start',
     paddingTop: 7,
     marginBottom: 15,
@@ -652,8 +1053,8 @@ const styles = StyleSheet.create({
     paddingRight: 10,
     marginBottom: 15,
     marginTop: 10,
-    width: 270,
-    height: 100,
+    width: Dimensions.get('window').width - 93,
+    minHeight: 100, // Use minHeight instead of height
   },
 });
 

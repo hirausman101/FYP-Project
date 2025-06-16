@@ -77,7 +77,7 @@ const EditProfile = () => {
       const token = await AsyncStorage.getItem('token');
       if (!token) {
         Alert.alert('Error', 'Not authenticated');
-        navigation.replace('/login');
+        navigation.navigate('Login');
         return;
       }
 
@@ -178,12 +178,12 @@ const EditProfile = () => {
   };
 
   if (loading) {
-    return (
-      <View style={styles.scrollContent}>
-        <ActivityIndicator size="large" color="#007BFF" />
-      </View>
-    );
-  }
+  return (
+    <View style={styles.scrollContent}>
+      <ActivityIndicator size="large" color="#007BFF" />
+    </View>
+  );
+}
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>

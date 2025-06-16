@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import {Modal, View, Text, StyleSheet, Dimensions, ScrollView, processColor, Pressable, TouchableOpacity } from 'react-native';
+import {Modal, View, Text, StyleSheet, Dimensions, ScrollView, processColor, Pressable, TouchableOpacity, ActivityIndicator } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { LineChart } from 'react-native-charts-wrapper';
 
@@ -17,7 +17,7 @@ const Patient = ({ route }) => {
 const [selectedDosage, setSelectedDosage] = useState(null);
 const [showDosageModal, setShowDosageModal] = useState(false);
 const [graphData, setGraphData] = useState(null);
-
+const [loading, setLoading] = useState(true);
 
  const chartConfigBase = {
     backgroundColor: 'white',
@@ -29,13 +29,14 @@ const [graphData, setGraphData] = useState(null);
       stroke: '#e3e3e3',
     },
     propsForLabels: {
-      fontSize: 5,
+      fontSize: 6,
     },
   };
 
 
 useEffect(() => {
   const fetchPatientById = async (id) => {
+    setLoading(true); // Start loading
     try {
       console.log('Fetching patient with id:', patientId);
       const response = await fetch(`${API_BASE_URL}/patientData/${id}`);
@@ -95,18 +96,28 @@ useEffect(() => {
       console.error('Error fetching patient or tremors data:', error);
       setPatient(null);
       setGraphData({ dataSets: [] });
+    } finally {
+      setLoading(false); // Stop loading
     }
   };
   if (patientId) fetchPatientById(patientId);
 }, [patientId]);
 
-  if (!patient) {
+  if (loading) {
     return (
       <View style={styles.container}>
-        <Text>Loading patient data...</Text>
+        <ActivityIndicator size="large" color="#2a4fbf" />
       </View>
     );
   }
+
+  if (loading) {
+  return (
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
+      <ActivityIndicator size="large" color="#2a4fbf" />
+    </View>
+  );
+}
 
      const handleLogout = async () => {
     try {
@@ -125,7 +136,7 @@ useEffect(() => {
     
     <View style={styles.container}>
      <View style={styles.topMenu}>
-           <Text style={{ marginLeft: 80, marginTop: 17, fontSize: 17 }}>Assigned Patients:</Text>
+           <Text style={{ marginLeft: 80, marginTop: 17, fontSize: 18 }}>Assigned Patients:</Text>
          </View>
       <View style={styles.grid}>
          <View style={[styles.sideMenu, { width: 65 }]}>
@@ -135,29 +146,29 @@ useEffect(() => {
                                <View style={styles.profileStatus}></View>
                              </Pressable>
                              </View>
-                         <View style={[{ marginTop: 30 }]}>
+                         <View style={[{ marginTop: 50 }]}>
                            <Pressable onPress={() => navigation.navigate('Dashboard',{email:email,id:id})}>
                              <Icon name="home-outline" style={[styles.Icon]} />
                            </Pressable>
                          </View>
-                         <View style={{ marginTop: 30 }}>
+                         <View style={{ marginTop: 50 }}>
                            <Pressable onPress={() => navigation.navigate('PatientDetails',{email:email,id:id})}>
-                             <Icon name="people-outline" style={[styles.Icon]} />
+                             <Icon name="people-outline" style={[styles.selectedIcon]} />
                            </Pressable>
                          </View>
                         
-                          <View style={{ marginTop: 30 }}>
+                          <View style={{ marginTop: 50 }}>
                             <Pressable onPress={() => navigation.navigate('CarePlan',{patient_id: patient._id, email:email,id:id})}>
                              <Icon name="nutrition-outline" style={[styles.Icon]} />
                             </Pressable>
                          </View>
-                         <View style={{ marginTop: 30 }}>
+                         <View style={{ marginTop: 50 }}>
                             <Pressable onPress={() => navigation.navigate('Location',{patientId: patient._id})}>
                              <Icon name="location-outline" style={[styles.Icon]} />
                             </Pressable>
                          </View>
-                     
-                         <View style={{ marginTop: 80 }}>
+                     <View style={{ flex: 1 }} />
+                         <View style={{ marginBottom: 100 }}>
                             <Pressable onPress={handleLogout}>
                              <Icon name="exit-outline" style={[styles.Icon]} />
                             </Pressable>
@@ -185,9 +196,9 @@ useEffect(() => {
                   maxHeight: '70%',
                   elevation: 5,
                 }}>
-                  <Text style={{fontWeight: 'bold', fontSize: 16, marginBottom: 10}}>Doctor Updates</Text>
+                  <Text style={{fontWeight: 'bold', fontSize: 17, marginBottom: 10}}>Doctor Updates</Text>
                   <ScrollView>
-                    <Text style={{fontSize: 13, color: 'black'}}>{patient.updates}</Text>
+                    <Text style={{fontSize: 14, color: 'black'}}>{patient.updates}</Text>
                   </ScrollView>
                   <TouchableOpacity
                     onPress={() => setShowUpdatesModal(false)}
@@ -228,7 +239,7 @@ useEffect(() => {
                   maxHeight: '70%',
                   elevation: 5,
                 }}>
-                  <Text style={{fontWeight: 'bold', fontSize: 16, marginBottom: 10}}>All Dosages</Text>
+                  <Text style={{fontWeight: 'bold', fontSize: 17, marginBottom: 10}}>All Dosages</Text>
                   <View style={styles.tableHeader}>
                     <Text style={[styles.headerCell, { flex: 2 }]}>Medication</Text>
                     <Text style={styles.headerCell}>Dosage</Text>
@@ -293,46 +304,52 @@ useEffect(() => {
           </View>
   
           <View style={styles.infoBlock}>
-            <Text style={styles.label}>Phone no.: {patient.phonenumber}</Text>
-            <Text style={styles.label}>Address: {patient.address}</Text>
-          </View>
+             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 3 }}>
+                    <Icon name="call-outline" size={16} color="#fff" style={{ marginRight: 6 }} />
+                    <Text style={styles.label}>Phone Number: {patient.phonenumber}</Text>
+                  </View>
+                   <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 5 }}>
+                    <Icon name="location-outline" size={16} color="#fff" style={{ marginRight: 6 }} />
+                    <Text style={styles.label}>Address: {patient.address}</Text>
+                  </View>
+                </View>
 
           <View style={styles.doctorBlock}>
             <View style={[styles.doctorBlockHeader]}>
-              <Text style={{fontSize:13,fontWeight:'bold',}}>Doctors Information:</Text>
+              <Text style={{fontSize:14,fontWeight:'bold',}}>Doctors Information:</Text>
             </View>
-            <View style={{flexDirection:'row'}}>
+            <View style={{flexDirection:'row', justifyContent: 'space-between', alignItems: 'center', gap: 10,}}>
               <View style={{flexDirection:'column', width: 150,}}>
-                <Text style={[styles.label,{fontSize:10}]}>Name: {patient.doctorInformation?.name}</Text>
-                <Text style={[styles.label,{fontSize:10}]}>Hospital: {patient.doctorInformation?.hospital}</Text>
+                <Text style={[styles.label,{fontSize:11}]}>Name: {patient.doctorInformation?.name}</Text>
+                <Text style={[styles.label,{fontSize:11}]}>Hospital: {patient.doctorInformation?.hospital}</Text>
               </View>
              <Pressable
                   onPress={() => setShowUpdatesModal(true)}
                   style={{
                     flexDirection: 'column',
                     marginTop: 3,
-                    backgroundColor: 'white',
+                    backgroundColor: '#E5E0FF',
                     borderRadius: 10,
                     height: 55,
-                    width: 105,
+                    width: 115,
                     overflow: 'hidden',
                   }}
                 >
-                  <Text style={{fontSize:10,color:'black',padding:3,paddingBottom:0,fontWeight:'bold'}}>Updates: </Text>
+                  <Text style={{fontSize:11,color:'black',padding:3,paddingBottom:0,fontWeight:'bold'}}>Updates: </Text>
                   <Text
                     style={{
                       fontSize:9,
                       color:'black',
                       padding:3,
                       paddingTop:0,
-                      paddingBottom:3,
+                      paddingBottom: 3,
                     }}
                     numberOfLines={2}
                     ellipsizeMode="tail"
                   >
                     {patient.updates}
                   </Text>
-                  <Text style={{color:'#2a4fbf', fontSize:9, textAlign: 'right', paddingRight: 5, paddingBottom: 3}}>
+                  <Text style={{color:'#2a4fbf', fontSize:8, textAlign: 'right', paddingRight: 5, paddingBottom: 1}}>
                     Show more ▼
                   </Text>
                 </Pressable>
@@ -364,14 +381,16 @@ useEffect(() => {
               ))
             }
             {Array.isArray(patient.dosageInformation) && patient.dosageInformation.length > 2 && (
-              <Text style={{ color: '#2a4fbf', fontSize: 11, marginTop: 4, alignSelf: 'flex-end' }}>
-                +{patient.dosageInformation.length - 2} more...
-              </Text>
+              <Pressable onPress={() => setShowDosageModal(true)}>
+                <Text style={{ color: '#2a4fbf', fontSize: 12, marginTop: 4, alignSelf: 'flex-end' }}>
+                  +{patient.dosageInformation.length - 2} more...
+                </Text>
+              </Pressable>
             )}
           </View>
                 
           <View style={styles.graphContiner}>
-            <Text style={{ fontSize: 15, fontWeight: 'bold' }}>Health Overview</Text>
+            <Text style={{ fontSize: 16, fontWeight: 'bold' }}>Health Overview</Text>
             {graphData && graphData.dataSets && graphData.dataSets.length > 0 ? (
               <LineChart
                 data={graphData}
@@ -441,7 +460,7 @@ const styles = StyleSheet.create({
   headerText: {
     flex: 1,
     fontWeight: 'bold',
-    fontSize: 11,
+    fontSize: 12,
   },
   rowContainer: {
     flexDirection: 'row',
@@ -452,7 +471,7 @@ const styles = StyleSheet.create({
   },
   patientText: {
     flex: 1,
-    fontSize: 9,
+    fontSize: 10,
   },
 tableHeader: {
   flexDirection: 'row',
@@ -466,7 +485,7 @@ tableHeader: {
 headerCell: {
   flex: 1,
   fontWeight: 'bold',
-  fontSize: 11,
+  fontSize: 12,
   color: '#222',
   textAlign: 'left',
   paddingLeft:4, 
@@ -482,7 +501,7 @@ patientRow: {
 },
 patientCell: {
   flex: 1,
-  fontSize: 9,
+  fontSize: 10,
   color: '#222',
   textAlign: 'left',
   paddingLeft: 4, 
@@ -538,26 +557,30 @@ patientCell: {
     borderRadius: 30,
   },
   selectedIcon: {
-    width: 40,
-    height: 40,
-    backgroundColor: '#e8eaf6',
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
+  width: 40,
+  height: 40,
+  fontSize: 20,
+  color: '#5961b8',
+  backgroundColor: '#e8eaf6',
+  borderRadius: 10,
+  textAlign: 'center',
+  justifyContent: 'center',
+  alignItems: 'center',
+  paddingTop: 10,
   },
   Icon: {
-    fontSize: 20,
+    fontSize: 21,
     color: '#5961b8',
   },
   mainContent: {
     flex: 1,
     marginLeft: 60,
-    marginTop: 60,
+    marginTop: 70,
     padding: 20,
     marginRight: 10,
   },
   header: {
-    fontSize: 20,
+    fontSize: 21,
     fontWeight: 'bold',
     color: '#2a4fbf',
     marginBottom: 20,
@@ -566,14 +589,14 @@ patientCell: {
   topRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 15,
-    gap: 10,
+    marginBottom: 25,
+    gap: 18,
   },
   infoCard: {
     backgroundColor: '#2d53c8',
     borderRadius: 15,
     paddingLeft:10,
-    width: 145,
+    width: 150,
     height:130,
     justifyContent: 'flex-start',
     paddingTop: 7,
@@ -594,28 +617,27 @@ patientCell: {
   statusText: {
     color: '#c85660',
     fontWeight: 'bold',
-    fontSize: 11,
+    fontSize: 12,
   },
   emergencyCard: {
     backgroundColor: '#7b63dd',
     borderRadius: 15,
     paddingLeft: 7,
-    paddingTop: 7,
-    width: 115,
-    height: 100,
+    paddingTop: 12,
+    width: 150,
+    height:130,
     justifyContent: 'flex-start',
-    marginTop: 30,
   },
   emergencyHeader: {
     color: '#fff',
     fontWeight: 'bold',
-    fontSize: 11.5,
-    marginBottom: 6,
+    fontSize: 12,
+    marginBottom: 15,
   },
   emergencyLabel: {
     color: '#fff',
-    fontSize: 10,
-    marginBottom: 2,
+    fontSize: 11,
+    marginBottom: 4,
   },
   infoBlock: {
     backgroundColor: '#7e8cfb',
@@ -624,9 +646,9 @@ patientCell: {
     paddingLeft: 10,
     paddingRight: 10,
     paddingBottom: 5,
-    marginBottom: 15,
+    marginBottom: 25,
     marginTop: 5,
-    width: 270,
+    width: Dimensions.get('window').width - 93,
     height: 70,
   },
   doctorBlock: {
@@ -636,28 +658,28 @@ patientCell: {
     paddingLeft: 7,
     paddingRight: 10,
     paddingBottom:0,
-    marginBottom: 15,
+    marginBottom: 25,
     marginTop: 5,
-    width: 270,
+    width: Dimensions.get('window').width - 93,
     height: 100,
   },
   doctorBlockHeader: {
-    backgroundColor: 'white',
+    backgroundColor: '#E5E0FF',
     borderRadius: 10,
     padding:3,
     paddingLeft:7,
     marginBottom: 5,
-    width: 257,
+    width: 305,
     height: 23,
   },
    medicationBlock: {
-    backgroundColor: '#b9d1ff',
+    backgroundColor: '#e5f0ff',
     borderRadius: 12,
     paddingLeft: 7,
     paddingRight: 10,
-    marginBottom: 15,
+    marginBottom: 25,
     marginTop: 5,
-    width: 270,
+    width: Dimensions.get('window').width - 93,
     height: 100,
   },
 

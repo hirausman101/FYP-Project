@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { View, Text, Pressable, Image, StyleSheet, ActivityIndicator, ScrollView, Alert, TouchableOpacity, Switch, Dimensions } from "react-native";
+import { View, Text, StyleSheet, ActivityIndicator, ScrollView, Alert, TouchableOpacity, Switch, Dimensions } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
@@ -7,7 +7,8 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Feather from 'react-native-vector-icons/Feather';
 import API_BASE_URL from "./config";
-const { width } = Dimensions.get('window');
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const CaregiverProfile = () => {
   const route = useRoute();
@@ -24,25 +25,23 @@ const CaregiverProfile = () => {
     return () => { isMounted.current = false; };
   }, []);
 
-  // Fetch caregiver profile using email or id from params
   const fetchProfile = async () => {
     try {
-      console.log("Fetching profile for email:", email, "and id:", id);
       const token = await AsyncStorage.getItem("token");
       if (!token || !email || !id) {
-        console.log("Missing token, email, or id");
         setProfile(null);
+        setAssignedPatients([]);
         setLoading(false);
         return;
       }
       const res = await axios.get(`${API_BASE_URL}/profile?email=${encodeURIComponent(email)}&id=${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      console.log("Profile API response:", res.data);
       setProfile(res.data?.data || null);
-    } catch (err) {
-      console.log("Error fetching profile:", err);
+      setAssignedPatients(res.data?.data?.items_id || []);
+    } catch {
       setProfile(null);
+      setAssignedPatients([]);
     } finally {
       setLoading(false);
     }
@@ -69,19 +68,13 @@ const CaregiverProfile = () => {
           },
         }
       );
-      // Option 1: Update local state
-      setProfile((prev: any) => ({ ...prev, isAvailable: value }));
-      // Option 2 (recommended): Re-fetch profile from backend for accuracy
-      // await fetchProfile();
+      await fetchProfile();
     } catch {
       Alert.alert("Error", "Failed to update availability.");
     }
   };
 
-
   const handleDeleteAccount = async () => {
-    console.log("Delete button pressed");
-  
     Alert.alert("Delete Account", "Are you sure you want to delete your account? This action cannot be undone.", [
       { text: "Cancel", style: "cancel" },
       {
@@ -107,233 +100,224 @@ const CaregiverProfile = () => {
     ]);
   };
 
-  
-  const handleLogout = async () => {
-    try {
-      await AsyncStorage.removeItem("token");
-      await AsyncStorage.removeItem("isLoggedIn");
-      await AsyncStorage.removeItem("userType");
-      // Navigate to login or welcome screen
-      navigation.navigate('Login');
-    } catch (err) {
-      Alert.alert("Logout failed", "Please try again.");
-    }
-  };
-
-  if (loading) return <ActivityIndicator size="large" color="#007BFF" style={{ flex: 1, justifyContent: "center" }} />;
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
+        <ActivityIndicator size="large" color="#2d53c8" />
+      </View>
+    );
+  }
   if (!profile) {
-    console.log("Profile is null, displaying 'Failed to load profile.'");
     return <Text style={{ textAlign: "center", marginTop: 40 }}>Failed to load profile.</Text>;
   }
 
   return (
-     <View style={styles.container}>
-         <View style={styles.topMenu}>
-           <Text style={{ marginLeft: 80, marginTop: 17, fontSize: 17 }}>Assigned Patients:</Text>
-         </View>
-         <View style={styles.grid}>
-           <View style={[styles.sideMenu, { width: 65 }]}>
-             {/* Side Menu Icons */}
-                        <View>
-                             <Pressable onPress={()=> navigation.navigate('CaregiverProfile',{email:email,id:id}) } style={[styles.profileIcon, { marginTop: 0, marginBottom: 30 }]}>
-                               <View style={styles.profileStatus}></View>
-                             </Pressable>
-                             </View>
-             <View style={[ { marginTop: 30 }]}>
-                <Pressable onPress={() => navigation.navigate('Dashboard')}>
-                   <Icon name="home-outline" style={[styles.Icon]} />
-                 </Pressable>
-             </View>
-             <View style={{ marginTop: 30 }}>
-                  <Pressable onPress={() => navigation.navigate('PatientDetails')}>
-                   <Icon name="people-outline" style={[styles.Icon]} />
-                 </Pressable>
-             </View>
-             <View style={{ marginTop: 30 }}>
-               <Icon name="pie-chart-outline" style={[styles.Icon]} />
-             </View>
-             <View style={{ marginTop: 30 }}>
-               <Icon name="settings-outline" style={[styles.Icon]} />
-             </View>
-             <View style={{ marginTop: 300 }}>
-               <Icon name="exit-outline" style={[styles.Icon]} />
-             </View>
-             <View style={{ marginTop: 30 }}>
-               <Icon name="moon-outline" style={[styles.Icon]} />
-             </View>
-           </View>
-           <View style={[styles.mainContent, { marginLeft: 75 }]}>
-        {/* Profile Section */}
-        <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
-          <View style={styles.profileCard}>
-            <TouchableOpacity style={styles.editIconButton} onPress={() => navigation.navigate('EditProfile',{ email: profile.email, id: profile._id })}>
-              <MaterialIcons name="edit" size={22} color="#0A1DD3" />
-            </TouchableOpacity>
-            <View style={styles.profileImage} />
-            <Text style={styles.nameText}>{profile.name}</Text>
-            <Text style={styles.linkText}>{profile.email}</Text>
-          </View>
-          <View style={styles.profileRight}>
-            <Text style={styles.infoText}>Profession: Caregiver</Text>
-            <Text style={styles.infoText}>Contact: {profile?.mobile || 'Not set'}</Text>
-            <Text style={styles.infoText}>Gender: {profile?.gender || 'Not set'}</Text>
-            <View style={styles.toggleRow}>
-              <Text style={styles.infoText}>Available?</Text>
-              {/* Just the toggle, no label text */}
-              <Switch
-                value={profile?.isAvailable ?? true}
-                onValueChange={handleAvailabilityToggle}
-              />
-            </View>
-          </View>
+    <ScrollView style={{ flex: 1, backgroundColor: '#fff' }}>
+      {/* Top row: Back arrow (left) and delete (right) */}
+      <View style={{
+        width: SCREEN_WIDTH,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        position: 'absolute',
+        top: 40,
+        left: 0,
+        paddingHorizontal: 18,
+        zIndex: 20,
+      }}>
+        <TouchableOpacity
+          style={styles.arrowButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Icon name="arrow-back" size={22} color="#2d53c8" />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.deleteIconButton}
+          onPress={handleDeleteAccount}
+        >
+          <Feather name="trash-2" size={20} color="#d32f2f" />
+        </TouchableOpacity>
+      </View>
+
+      {/* Profile Section */}
+      <View style={{ alignItems: 'center', marginTop: 80, marginBottom: 20 }}>
+        <View style={styles.profileImage}>
+          <Icon name="person-circle-outline" size={100} color="#8EA7E9" />
+          {/* Edit icon */}
+          <TouchableOpacity
+            style={styles.editIconButton}
+            onPress={() => navigation.navigate('EditProfile', { email: profile.email, id: profile._id })}
+          >
+            <MaterialIcons name="edit" size={20} color="#0A1DD3" />
+          </TouchableOpacity>
         </View>
-
-        {/* Patients Carousel */}
-       <Text style={styles.sectionTitle}>Assigned Items</Text>
-<ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false}>
-  {(profile.items_id || []).map((item: any) => (
-    <View key={item._id} style={styles.patientCard}>
-      <Text style={styles.patientText}>{item.Name}</Text>
-      <Text style={styles.patientDetails}>
-        Gender: {item.Gender}, Status: {item.Status}
-      </Text>
-    </View>
-  ))}
-</ScrollView>
-
-
-
-
+        <Text style={styles.nameText}>{profile.name}</Text>
+        {/* Caregiver badge */}
+        <View style={styles.roleBadge}>
+          <Text style={styles.roleText}>Caregiver</Text>
+        </View>
+        {/* Available toggle */}
+        <View style={styles.toggleRow}>
+          <Text style={styles.availableText}>Available?</Text>
+          <Switch
+            value={profile?.isAvailable ?? true}
+            onValueChange={handleAvailabilityToggle}
+          />
         </View>
       </View>
-    </View>
+
+      {/* Assigned Patients */}
+      <Text style={styles.assignedPatientsTitle}>Assigned Patients</Text>
+      <View style={{ alignItems: 'center', width: '100%' }}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ alignItems: 'center' }}
+          style={{ marginBottom: 20 }}
+        >
+          {(assignedPatients || []).map((patient, idx) => (
+            <View
+              key={idx}
+              style={styles.patientCard}
+            >
+              <Text style={styles.patientName}>{patient.Name}</Text>
+              <Text style={styles.patientGender}> {patient.Gender}</Text>
+            </View>
+          ))}
+        </ScrollView>
+      </View>
+
+     
+      <View style={styles.infoCard}>
+        <InfoRow label="Email" value={profile.email} />
+        <InfoRow label="Contact" value={profile?.mobile || 'Not set'} />
+        <InfoRow label="Gender" value={profile?.gender || 'Not set'} />
+      </View>
+    </ScrollView>
   );
 };
 
 
+const InfoRow = ({ label, value }) => (
+  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 }}>
+    <Text style={{ color: '#6f5691', fontWeight: 'bold', fontSize: 16, }}>{label}</Text>
+    <Text style={{ color: '#654f82', fontSize: 15 }}>{value}</Text>
+  </View>
+);
+
 const styles = StyleSheet.create({
-  mainContent: {
-    padding: 10,
-    paddingTop:30,
-    width: '100%',
-    height: '100%',
-  },
-  grid: {
-    top: 0,
-    left: 0,
-    flex: 1,
-    width: '100%',
-    height: '100%',
-    flexDirection: 'column',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    paddingTop: 60,
-  },
-  container: {
-    flex: 1,
-    justifyContent: 'flex-start',
+  profileImage: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
     alignItems: 'center',
-    backgroundColor: 'white',
-    flexDirection:'column',
+    justifyContent: 'center',
+    marginBottom: 12,
+    position: 'relative',
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
+  arrowButton: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 4,
+    elevation: 2,
+    zIndex: 2,
   },
-  sideMenu: {
-    flex:1,
+  editIconButton: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    width: 65,
-    height: Dimensions.get('window').height,
-    backgroundColor: 'white',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-    flexDirection: 'column',
-    padding: 10,
+    top: 8,
+    right: 8,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 4,
+    elevation: 2,
+    zIndex: 2,
+  },
+  deleteIconButton: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 4,
+    elevation: 2,
+    zIndex: 2,
+  },
+  nameText: {
+    fontWeight: 'bold',
+    fontSize: 20,
+    color: '#2d53c8',
+    textAlign: 'center',
+  },
+  roleBadge: {
+    backgroundColor: '#2D336B',
+    borderRadius: 12,
+    paddingVertical: 5,
+    paddingHorizontal: 9,
+    marginTop: 10,
+    marginBottom: 8,
+  },
+  roleText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  toggleRow: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  availableText: {
+    color: '#b52400',
+    fontWeight: 'bold',
+    fontSize: 18,
+    marginRight: 8,
     marginTop: 10,
   },
-  topMenu: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    width: '100%',
-    height: 60,
-    backgroundColor: 'white',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-    marginBottom:70,
-  },
-  profileIcon: {
-    width: 40,
-    height: 40,
-    backgroundColor: '#e8eaf6',
-    borderRadius: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  profileStatus: {
-    position: 'absolute',
-    top: 30,
-    left: 27,
-    width: 12,
-    height: 12,
-    backgroundColor: '#5961b8',
-    borderRadius: 30,
-  },
-  selectedIcon: {
-    width: 40,
-    height: 40,
-    backgroundColor: '#e8eaf6',
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  Icon: {
+  assignedPatientsTitle: {
+    fontWeight: 'bold',
     fontSize: 20,
-    color: '#5961b8',
+    color: 'black',
+    marginTop:30,
+    marginBottom: 30,
+    textAlign:'center',
   },
-  patientIcon: {
-    left: 0,
-    width: 30,
-    height: 30,
-    backgroundColor: 'white',
-    borderRadius: 30,
-    justifyContent: 'center',
+  patientCard: {
+    width: 90,
+    height: 90,
+    backgroundColor: '#e1fca9',
+    borderRadius: 18,
+    marginRight: 25,
     alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 2,
+    elevation: 1,
+    gap: 10,
   },
-  iconRow: { flexDirection: 'column', alignItems: 'center' },
-  icon: { marginBottom: 28 },
-  bottomIcons: { marginBottom: 40, gap: 20, alignItems: 'center' },
-  avatar: { width: 40, height: 40, borderRadius: 20, marginBottom: 20 },
-  main: { flex: 1, paddingTop: 40, paddingLeft: 15 },
-  profileCard: { flexDirection: 'column', backgroundColor: '#e3e9ff', borderRadius: 20, padding: 20, marginBottom: 20, width: 130, alignItems: 'center', position: 'relative' },
-  editIconButton: { position: 'absolute', top: 10, right: 10, backgroundColor: '#fff', borderRadius: 16, padding: 4, elevation: 2, zIndex: 2 },
-  profileImage: { width: 70, height: 90, borderRadius: 35, backgroundColor: 'white', marginBottom: 10 },
-  nameText: { fontWeight: 'bold', fontSize: 12, textAlign: 'left', paddingRight: 0 },
-  linkText: { color: 'gray', fontSize: 12 },
-  profileRight: { marginTop: 20, justifyContent: 'space-around', paddingLeft: 15, flex: 1, gap: 8 },
-  infoText: { fontSize: 14, marginBottom: 5 },
-  toggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sectionTitle: { fontWeight: 'bold', fontSize: 16, marginVertical: 10 },
-  patientCard: { width: 120, height: 100, backgroundColor: '#a3c8ff', borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginRight: 15, marginBottom: 12 },
-  patientText: { fontWeight: 'bold', color: '#fff' },
-  patientDetails: { fontSize: 12, color: '#555', marginTop: 4, textAlign: 'center' },
+  patientName: {
+    fontWeight: 'bold',
+    color: '##405e42',
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  patientGender: {
+    color: '#405e42',
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  infoCard: {
+    backgroundColor: '#eeebff',
+    borderRadius: 20,
+    marginHorizontal: 20,
+    marginTop:50,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    elevation: 1,
+    marginBottom: 30,
+  },
 });
 
 export default CaregiverProfile;

@@ -2,11 +2,9 @@ import React, { useState } from 'react';
 import { View, Text, Image, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from 'axios';
 import Feather from 'react-native-vector-icons/Feather';
 import MyButton from './components/MyButton';
 import API_BASE_URL from './config';
-
 
 function Login() {
   const navigation = useNavigation();
@@ -14,50 +12,60 @@ function Login() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
-async function handleSubmit() {
-  try {
-    const res = await axios.post(`${API_BASE_URL}/login-user`, { email, password }, {
-      headers: { 'ngrok-skip-browser-warning': 'true' }
-    });
-    if (res.data.status === 'ok') {
-      await AsyncStorage.setItem("token", res.data.data); // Store the token from backend
-      await AsyncStorage.setItem('isLoggedIn', JSON.stringify(true));
-      await AsyncStorage.setItem('userType', res.data.userType);
-      Alert.alert('Logged In Successfully');
-      // Pass email and id as params
-      navigation.navigate('Dashboard', {
-        email: res.data.email || email,
-        id: res.data._id || res.data.id // Use id from response if available
-      });
-    } else {
-      Alert.alert('Login failed', 'Invalid response from server');
+  async function handleSubmit() {
+    if (!email || !password) {
+      Alert.alert("Please enter email and password");
+      return;
     }
-  } catch (err: any) {
-    Alert.alert('Login failed', err.response?.data?.error || 'Please check your credentials and try again.');
+    try {
+      console.log('Logging in with:', { email, password });
+      const res = await fetch(`${API_BASE_URL}/login-user`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (data.status === 'ok') {
+        await AsyncStorage.setItem("token", data.data); // Store the token from backend
+        await AsyncStorage.setItem('isLoggedIn', JSON.stringify(true));
+        await AsyncStorage.setItem('userType', data.userType);
+        console.log('Login successful:', data);
+        Alert.alert('Logged In Successfully');
+        navigation.navigate('Dashboard', {
+          email: data.email || email,
+          id: data._id || data.id // Use id from response if available
+        });
+      } else {
+        Alert.alert('Login failed', data.error || 'Invalid response from server');
+      }
+    } catch (err: any) {
+      Alert.alert('Login failed', err.message || 'Please check your credentials and try again.');
+    }
   }
-}
- const handleForgotPassword = () => {
-  if (!email) {
-    alert("Please enter your email");
-    return;
-  }
-  axios.post(`${API_BASE_URL}/forgot-password`, { email }, {
-    headers: { 'ngrok-skip-browser-warning': 'true' }
-  })
-    .then(res => {
-      alert(res.data.message || "Check your email");
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      alert("Please enter your email");
+      return;
+    }
+    try {
+      const res = await fetch(`${API_BASE_URL}/forgot-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", 'ngrok-skip-browser-warning': 'true' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      alert(data.message || "Check your email");
       navigation.navigate('ResetPassword', { email });
-    })
-    .catch((err) => {
-      // Show backend error message if available
-      alert(err.response?.data?.error || err.message || "Error sending email");
-    });
-};
+    } catch (err: any) {
+      alert(err.message || "Error sending email");
+    }
+  };
 
   return (
     <View style={styles.container}>
       <View style={styles.logoContainer}>
-        <Image source={require('./assets/care.png')} style={styles.logo} />
+        <Image source={require('./assets/login.jpg')} style={styles.logo} />
         <Text style={styles.title}>Login</Text>
       </View>
       <TextInput
@@ -102,7 +110,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 24,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     backgroundColor: '#fff',
   },
   title: {
@@ -114,7 +122,7 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: '#679cf0',
     padding: 12,
     borderRadius: 8,
     marginBottom: 16,
@@ -124,7 +132,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   alignItems: 'center',
   borderWidth: 1,
-  borderColor: '#ccc',
+  borderColor: '#679cf0',
   borderRadius: 8,
   paddingHorizontal: 12,
   marginBottom: 16,
@@ -141,6 +149,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
     color: '#4facfe',
     textAlign: 'center',
+    fontSize: 16,
   },
   forgotPassword: {
   color: '#3A59D1',
@@ -149,9 +158,9 @@ const styles = StyleSheet.create({
   fontSize: 14,
 },
  logo: {
-    width: 100,
-    height: 100,
-    marginBottom: 50,
+    width: 300,
+    height: 300,
+    marginBottom: 30,
    
   },
   logoContainer: {

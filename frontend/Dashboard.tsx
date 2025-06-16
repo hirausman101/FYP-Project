@@ -29,6 +29,7 @@ const Dashboard = () => {
 
   const [patients, setPatients] = useState<Item[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(true); 
   
   const parseTime = (timeString: string): Date => {
     const [hours, minutes] = timeString.split(":").map(Number); 
@@ -57,48 +58,42 @@ const Dashboard = () => {
 
 
   useEffect(() => {
- 
     const fetchPatients = async () => {
-  try {
-    const token = await AsyncStorage.getItem("token"); // or however you store the token
-    console.log('Fetching patients with:', email, id, 'token:', token);
-    const response = await fetch(
-      `${API_BASE_URL}/profile?email=${email}&id=${id}`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+      setLoading(true); // Set loading true at the start
+      try {
+        const token = await AsyncStorage.getItem("token");
+        const response = await fetch(
+          `${API_BASE_URL}/profile?email=${email}&id=${id}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+        const data = await response.json();
+        if (data.status === "ok" && data.data && data.data.items_id) {
+          setPatients(data.data.items_id);
+        } else {
+          setPatients([]);
+        }
+      } catch (error) {
+        setPatients([]);
       }
-    );
-    const data = await response.json();
-    console.log('Profile API response:', data);
-    if (data.status === "ok" && data.data && data.data.items_id) {
-      setPatients(data.data.items_id);
-      console.log('Set patients:', data.data.items_id);
-    } else {
-      setPatients([]);
-      console.log('No patients found in response');
-    }
-  } catch (error) {
-    console.error('Error fetching patients:', error);
-    setPatients([]);
-  }
-};
+      setLoading(false); 
+    };
 
     const fetchNotifications = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/notifications`);
-        const data = await response.json();
-        console.log('Fetched notifications:', data);
-        setNotifications(data);
+        const res = await fetch(`${API_BASE_URL}/notifications`);
+        const data = await res.json();
+        setNotifications(Array.isArray(data) ? data : []);
       } catch (error) {
-        console.error('Error fetching notifications:', error);
+        setNotifications([]);
       }
-    }
+    };
 
-    fetchPatients();
-    fetchNotifications();
+    fetchPatients().then(fetchNotifications);
   }, []);
 
   const screenWidth = Dimensions.get('window').width;
@@ -185,32 +180,41 @@ const Dashboard = () => {
    
 
 
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
+        <ActivityIndicator size="large" color="#2a4fbf" />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.topMenu}>
-        <Text style={{ marginLeft: 80, marginTop: 17, fontSize: 17 }}>Assigned Patients:</Text>
+        <Text style={{ marginLeft: 80, marginTop: 17, fontSize: 20 }}>Dashboard:</Text>
       </View>
       <View style={styles.grid}>
        <View style={[styles.sideMenu, { width: 65 }]}>
-                {/* Side Menu Icons */}
-                <View>
-                <Pressable onPress={()=> navigation.navigate('CaregiverProfile',{email:email,id:id}) } style={[styles.profileIcon, { marginTop: 0, marginBottom: 30 }]}>
+                {/* Profile Icon */}
+                <Pressable onPress={() => navigation.navigate('CaregiverProfile', { email, id })} style={[styles.profileIcon, { marginTop: 0, marginBottom: 30 }]}>
                   <View style={styles.profileStatus}></View>
                 </Pressable>
-                </View>
-                <View style={[{ marginTop: 30 }]}>
-                  <Pressable onPress={() => navigation.navigate('Dashboard',{email:email,id:id})}>
-                    <Icon name="home-outline" style={[styles.Icon]} />
+                {/* Home Icon */}
+                <View style={[{ marginTop: 50 }]}>
+                  <Pressable onPress={() => navigation.navigate('Dashboard', { email, id })}>
+                    <Icon name="home-outline" style={[styles.selectedIcon]} />
                   </Pressable>
                 </View>
-                <View style={{ marginTop: 30 }}>
-                  <Pressable onPress={() => navigation.navigate('PatientDetails',{email:email,id:id})}>
+                {/* Patients Icon */}
+                <View style={{ marginTop: 50, marginBottom: 100, justifyContent: 'flex-end' }}>
+                  <Pressable onPress={() => navigation.navigate('PatientDetails', { email, id })}>
                     <Icon name="people-outline" style={[styles.Icon]} />
                   </Pressable>
                 </View>
-                
-            
-                <View style={{ marginTop: 80 }}>
+                {/* Spacer to push exit icon to bottom */}
+                <View style={{ flex: 1 }} />
+                {/* Exit Icon */}
+                <View style={{ marginBottom: 100 }}>
                    <Pressable onPress={handleLogout}>
                     <Icon name="exit-outline" style={[styles.Icon]} />
                    </Pressable>
@@ -220,46 +224,46 @@ const Dashboard = () => {
 
 
         <View style={[styles.mainContent, { marginLeft: 75 }]}>
-        <ScrollView horizontal={true} showsHorizontalScrollIndicator={false}>
-            <View style={styles.tabRows}>
-              {patients.map((patient, index) => (
-                <Pressable onPress={() => navigation.navigate('Patient', { patientId: patient.patient_id , email:email, id:id})} key={index} style={styles.tab}>
-                  <View style={{ flexDirection: 'row' }}>
-                    <View style={[styles.patientIcon]}>
-                      <Icon name="person-outline" size={15} color="black" />
-                    </View>
-                    <View style={{ flexDirection: 'row', marginLeft: 35 }}>
-                      <Text style={{ fontSize: 8, color: '#fff' }}>See more</Text>
-                      <Icon name="chevron-forward-outline" size={10} color="#fff" />
-                    </View>
-                  </View>
-                  <View style={styles.displayData}>
-                    <Text style={{ fontSize: 10, color: '#fff', marginTop: 10 }}>
-                      Name: {patient.Name}
-                    </Text>
-                    <Text style={{ fontSize: 10, color: '#fff', marginTop: 5 }}>
-                      Gender: {patient.Gender}
-                    </Text>
-                    <View style={{ flexDirection: 'row', marginTop: 5 }}>
-                      <Text style={{ fontSize: 10, color: '#fff' }}>Status: </Text>
-                      <Text
-                        style={[
-                          patient.Status === 'Critical' ? styles.criticalStatus : styles.normalStatus,
-                        ]}
-                      >
-                        {patient.Status}
-                      </Text>
-                    </View>
-                  </View>
-                </Pressable>
-              ))}
-              <View style={{ width: 30 }}></View>
+  <ScrollView horizontal={true} showsHorizontalScrollIndicator={false}>
+    <View style={styles.tabRows}>
+      {patients.map((patient, index) => (
+        <Pressable onPress={() => navigation.navigate('Patient', { patientId: patient.patient_id , email:email, id:id})} key={index} style={styles.tab}>
+          <View style={{ flexDirection: 'row' }}>
+            <View style={[styles.patientIcon]}>
+              <Icon name="person-outline" size={15} color="black" />
             </View>
-          </ScrollView>
-         
+            <View style={{ flexDirection: 'row', marginLeft: 35 }}>
+              <Text style={{ fontSize: 10, color: '#fff' }}>See more</Text>
+              <Icon name="chevron-forward-outline" size={12} color="#fff" />
+            </View>
+          </View>
+          <View style={styles.displayData}>
+            <Text style={{ fontSize: 12, color: '#fff', marginTop: 10 }}>
+              Name: {patient.Name}
+            </Text>
+            <Text style={{ fontSize: 10, color: '#fff', marginTop: 5 }}>
+              Gender: {patient.Gender}
+            </Text>
+            <View style={{ flexDirection: 'row', marginTop: 5 }}>
+              <Text style={{ fontSize: 10, color: '#fff' }}>Status: </Text>
+              <Text
+                style={[
+                  patient.Status === 'Critical' ? styles.criticalStatus : styles.normalStatus,
+                ]}
+              >
+                {patient.Status}
+              </Text>
+            </View>
+          </View>
+        </Pressable>
+      ))}
+      <View style={{ width: 30 }}></View>
+    </View>
+  </ScrollView>
+
 
             <View style={styles.graphContiner}>
-            <Text style={{ fontSize: 15, fontWeight: 'bold', }}>Health Overview</Text>
+            <Text style={{ fontSize: 17, fontWeight: 'bold', }}>Health Overview</Text>
             {data.dataSets.length > 0 ? (
               <LineChart
                 data={data}
@@ -300,8 +304,8 @@ const Dashboard = () => {
             </View>
         
             <View style={{ flexDirection: 'row',width: Dimensions.get('window').width - 100,justifyContent:'space-between',marginTop: 50,marginBottom: 0 }}>
-              <Text style={{ fontSize: 15, fontWeight: 'bold',}}>Notifications</Text>
-              <View style={styles.clickNotifications}><Text style={{fontSize:7,}}>Click to see more</Text></View>
+              <Text style={{ fontSize: 22, fontWeight: 'bold' }}>Notifications</Text>
+              <View style={styles.clickNotifications}><Text style={{fontSize:8,}}>Click to see more</Text></View>
             </View>
               
           <ScrollView showsVerticalScrollIndicator={false} style={{ marginTop: 5 }}>
@@ -309,7 +313,7 @@ const Dashboard = () => {
              
                         
             <View style={styles.notificationColumn}>
-              {notifications.map((notification, index) => {
+              {Array.isArray(notifications) && notifications.map((notification, index) => {
                 let icon = null;
                 if (notification.Title.toLowerCase().includes('tremor')) {
                   icon = (
@@ -353,7 +357,7 @@ const Dashboard = () => {
                     </View>
                     <Text style={styles.notificationText}>Patient: {notification.Patient}</Text>
                     <Text style={styles.notificationText}>Intensity: {notification.Intensity}</Text>
-                    <Text style={{ textAlign: 'right', fontSize: 6 }}>See more</Text>
+                    <Text style={{ textAlign: 'right', fontSize: 8 }}>See more</Text>
                   </View>
                 );
               })}
@@ -396,26 +400,25 @@ clickNotifications:{
   },
   notification: {
     width: Dimensions.get('window').width - 100,
-    marginTop:20,
-    height: 50,
+    marginTop:40,
+    height: 60,
     borderRadius: 15,
     padding: 10,
     paddingBottom: 10,
     paddingTop:3,
   },
   notificationText: {
-    fontSize: 8,
+    fontSize: 10, // was 8, then 9
     color: '#000',
   },
   notificationTitle: {
-    fontSize: 10,
+    fontSize: 12, // was 10, then 11
     fontWeight: 'bold',
     color: '#000',
   },
   graphContiner: {
     width: Dimensions.get('window').width - 100, 
-    marginTop: 10,
-    marginBottom: 0,
+    marginBottom: 10,
     backgroundColor: 'white',
     borderRadius: 12,
     padding: 5,
@@ -439,11 +442,11 @@ clickNotifications:{
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginTop: 70,
-    marginBottom: 10,
+    marginBottom: 50,
   },
   tab: {
-    width: 130,
-    height: 120,
+    width: 150,
+    height: 130,
     marginRight: 50,
     padding: 10,
     backgroundColor: '#2a4fbf',
@@ -473,7 +476,7 @@ clickNotifications:{
     backgroundColor: 'white',
   },
   title: {
-    fontSize: 24,
+    fontSize: 26, // was 24, then 25
     fontWeight: 'bold',
     color: '#333',
   },
@@ -531,14 +534,17 @@ clickNotifications:{
     backgroundColor: '#5961b8',
     borderRadius: 30,
   },
-
-   selectedIcon: {
-    width: 40,
-    height: 40,
-    backgroundColor: '#e8eaf6',
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
+ selectedIcon: {
+  width: 40,
+  height: 40,
+  fontSize: 20,
+  color: '#5961b8',
+  backgroundColor: '#e8eaf6',
+  borderRadius: 10,
+  textAlign: 'center',
+  justifyContent: 'center',
+  alignItems: 'center',
+  paddingTop: 10,
   },
   Icon: {
     fontSize: 20,
@@ -555,21 +561,23 @@ clickNotifications:{
   },
   criticalStatus: {
     width: 40,
-    height: 14,
+    height: 18,
     backgroundColor: '#e99cb0',
     borderRadius: 30,
     color: '#c85660',
-    fontSize: 8,
+    fontSize: 10, // was 8, then 9
     fontWeight: 'bold',
     textAlign: 'center',
     paddingTop: 2,
+    paddingBottom: 2,
   },
   normalStatus: {
     width: 40,
-    height: 14,
+    height: 18,
+    paddingBottom: 2,
     backgroundColor: '#b2f1b2',
     borderRadius: 30,
-    fontSize: 8,
+    fontSize: 10, // was 8, then 9
     fontWeight: 'bold',
     color: '#6aa274',
     textAlign: 'center',

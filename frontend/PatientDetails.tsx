@@ -17,9 +17,11 @@ const PatientDetails = () => {
   const navigation = useNavigation();
   const { email, id } = route.params || {};
   const [patients, setPatients] = useState<Item[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchPatients = async () => {
+      setLoading(true); // Start loading
       try {
         const token = await AsyncStorage.getItem("token");
         const response = await fetch(
@@ -39,6 +41,8 @@ const PatientDetails = () => {
         }
       } catch (error) {
         setPatients([]);
+      } finally {
+        setLoading(false); // Stop loading
       }
     };
     fetchPatients();
@@ -57,8 +61,13 @@ const PatientDetails = () => {
     }
   };
 
-
-   
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
+        <ActivityIndicator size="large" color="#2a4fbf" />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -71,22 +80,25 @@ const PatientDetails = () => {
                                <View style={styles.profileStatus}></View>
                              </Pressable>
                              </View>
-                      <View style={[{ marginTop: 30 }]}>
+                      <View style={[{ marginTop: 50 }]}>
                         <Pressable onPress={() => navigation.navigate('Dashboard',{email:email,id:id})}>
                           <Icon name="home-outline" style={[styles.Icon]} />
                         </Pressable>
                       </View>
-                      <View style={{ marginTop: 30 }}>
+                      <View style={{ marginTop: 50 }}>
                         <Pressable onPress={() => navigation.navigate('PatientDetails',{email:email,id:id})}>
-                          <Icon name="people-outline" style={[styles.Icon]} />
+                          <Icon name="people-outline" style={[styles.selectedIcon]} />
                         </Pressable>
                       </View>
                                       
-                      <View style={{ marginTop: 80 }}>
-                         <Pressable onPress={handleLogout}>
-                          <Icon name="exit-outline" style={[styles.Icon]} />
-                         </Pressable>
-                      </View>
+                       <View style={{ flex: 1 }} />
+                                      {/* Exit Icon */}
+                                      <View style={{ marginBottom: 100 }}>
+                                         <Pressable onPress={handleLogout}>
+                                          <Icon name="exit-outline" style={[styles.Icon]} />
+                                         </Pressable>
+                                      </View>
+                            
             
                     </View>
         <View style={styles.mainContent}>
@@ -94,50 +106,65 @@ const PatientDetails = () => {
             <Text style={styles.patientRowText}>Patients View:</Text>
             <View style={styles.separator} />
             <View style={styles.tableHeader}>
-              <Text style={styles.headerCell}>Name</Text>
-              <Text style={styles.headerCell}>Gender</Text>
-              <Text style={[styles.headerCell, { flex: 0.7 }]}>Status</Text>
-              <Text style={[styles.headerCell, { flex: 0.7 }]}>Action</Text>
-            </View>
+  <View style={{ flex: 2 }}>
+    <Text style={styles.headerCell}>Name</Text>
+  </View>
+  <View style={{ flex: 1.2 }}>
+    <Text style={styles.headerCell}>Gender</Text>
+  </View>
+  <View style={{ flex: 1.2 }}>
+    <Text style={styles.headerCell}>Status</Text>
+  </View>
+  <View style={{ flex: 1.2 }}>
+    <Text style={styles.headerCell}>Action</Text>
+  </View>
+</View>
 
-            {patients.length === 0 && (
-              <Text style={{ textAlign: 'center', color: '#888', marginVertical: 20 }}>
-                No patients assigned.
-              </Text>
-            )}
+{patients.length === 0 && (
+  <Text style={{ textAlign: 'center', color: '#888', marginVertical: 20 }}>
+    No patients assigned.
+  </Text>
+)}
 
-            {patients.map((patient, index) => (
-              <View
-                key={patient._id}
-                style={[
-                  styles.patientRow,
-                  { backgroundColor: index % 2 === 0 ? '#f6f8ff' : '#fff' }
-                ]}
-              >
-                <Text style={styles.patientCell}>{patient.Name}</Text>
-                <Text style={styles.patientCell}>{patient.Gender}</Text>
-                <View style={[
-                  styles.statusBadge,
-                  { flex: 0.7, paddingHorizontal: 8 },
-                  patient.Status === 'Critical' ? styles.criticalStatus : styles.normalStatus
-                ]}>
-                  <Text
-                    style={[
-                      styles.statusText,
-                      patient.Status === 'Critical' ? styles.criticalText : styles.normalText
-                    ]}
-                  >
-                    {patient.Status}
-                  </Text>
-                </View>
-                <Pressable
-                  style={[styles.viewButton, { flex: 0.7, paddingHorizontal: 8 }]}
-                  onPress={() => navigation.navigate('Patient', { patientId: patient._id })}
-                >
-                  <Text style={styles.viewButtonText}>View</Text>
-                </Pressable>
-              </View>
-            ))}
+{patients.map((patient, index) => (
+  <View
+    key={patient._id}
+    style={[
+      styles.patientRow,
+      { backgroundColor: index % 2 === 0 ? '#f6f8ff' : '#fff' }
+    ]}
+  >
+    <View style={{ flex: 2 }}>
+      <Text style={styles.patientCell}>{patient.Name}</Text>
+    </View>
+    <View style={{ flex: 1.2 }}>
+      <Text style={styles.patientCell}>{patient.Gender}</Text>
+    </View>
+    <View style={{ flex: 1.2 }}>
+      <View style={[
+        styles.statusBadge,
+        patient.Status === 'Critical' ? styles.criticalStatus : styles.normalStatus
+      ]}>
+        <Text
+          style={[
+            styles.statusText,
+            patient.Status === 'Critical' ? styles.criticalText : styles.normalText
+          ]}
+        >
+          {patient.Status}
+        </Text>
+      </View>
+    </View>
+    <View style={{ flex: 1.2 }}>
+      <Pressable
+        style={styles.viewButton}
+        onPress={() => navigation.navigate('Patient', { patientId: patient.patient_id, email: email, id: id })}
+      >
+        <Text style={styles.viewButtonText}>View</Text>
+      </Pressable>
+    </View>
+  </View>
+))}
           </ScrollView>
         </View>
       </View>
@@ -200,12 +227,16 @@ const styles = StyleSheet.create({
     borderRadius: 30,
   },
   selectedIcon: {
-    width: 40,
-    height: 40,
-    backgroundColor: '#e8eaf6',
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
+  width: 40,
+  height: 40,
+  fontSize: 20,
+  color: '#5961b8',
+  backgroundColor: '#e8eaf6',
+  borderRadius: 10,
+  textAlign: 'center',
+  justifyContent: 'center',
+  alignItems: 'center',
+  paddingTop: 10,
   },
   Icon: {
     fontSize: 20,

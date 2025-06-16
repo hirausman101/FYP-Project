@@ -50,7 +50,7 @@ function Signup() {
   return (
     <View style={styles.container}>
       <View style={styles.logoContainer}>
-        <Image source={require('./assets/care.png')} style={styles.logo} />
+        <Image source={require('./assets/signup.jpg')} style={styles.logo} />
         <Text style={styles.title}>Sign Up</Text>
       </View>
       <TextInput
@@ -83,7 +83,7 @@ function Signup() {
           />
         </TouchableOpacity>
       </View>
-      <MyButton title="Sign Up" onPress={handleSubmit} />
+      <MyButton title="Sign Up" onPress={handleSubmit} color="#8a61c7" />
       <TouchableOpacity onPress={() => navigation.navigate('Login')}>
         <Text style={styles.link}>Already have an account? Login</Text>
       </TouchableOpacity>
@@ -97,7 +97,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 24,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     backgroundColor: '#fff',
   },
   title: {
@@ -116,8 +116,9 @@ const styles = StyleSheet.create({
   },
   link: {
     marginTop: 20,
-    color: '#4facfe',
+    color: '#a97af0',
     textAlign: 'center',
+    fontSize: 16,
   },
   passwordContainer: {
     flexDirection: 'row',
@@ -137,8 +138,9 @@ const styles = StyleSheet.create({
     marginRight: 0,
   },
   logo: {
-    width: 100,
-    height: 100,
+    marginTop:30,
+    width: 230,
+    height: 230,
     marginBottom: 50,
     resizeMode: 'contain',
   },
