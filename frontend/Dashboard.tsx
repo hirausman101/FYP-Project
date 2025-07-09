@@ -441,8 +441,8 @@ clickNotifications:{
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginTop: 70,
-    marginBottom: 50,
+    marginTop: 50,
+    marginBottom: 80,
   },
   tab: {
     width: 150,

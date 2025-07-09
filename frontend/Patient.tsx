@@ -198,7 +198,9 @@ useEffect(() => {
                 }}>
                   <Text style={{fontWeight: 'bold', fontSize: 17, marginBottom: 10}}>Doctor Updates</Text>
                   <ScrollView>
-                    <Text style={{fontSize: 14, color: 'black'}}>{patient.updates}</Text>
+                    <Text style={{fontSize: 14, color: 'black'}}>
+                      {patient?.updates || "No updates available."}
+                    </Text>
                   </ScrollView>
                   <TouchableOpacity
                     onPress={() => setShowUpdatesModal(false)}
@@ -232,7 +234,7 @@ useEffect(() => {
                 alignItems: 'center'
               }}>
                 <View style={{
-                  backgroundColor: '#b9d1ff',
+                  backgroundColor: '#e5f0ff',
                   borderRadius: 14,
                   padding: 10,
                   width: '90%',
@@ -590,13 +592,13 @@ patientCell: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 25,
-    gap: 18,
+    gap: 12,
   },
   infoCard: {
     backgroundColor: '#2d53c8',
     borderRadius: 15,
     paddingLeft:10,
-    width: 150,
+    width: 145,
     height:130,
     justifyContent: 'flex-start',
     paddingTop: 7,
@@ -624,7 +626,7 @@ patientCell: {
     borderRadius: 15,
     paddingLeft: 7,
     paddingTop: 12,
-    width: 150,
+    width: 145,
     height:130,
     justifyContent: 'flex-start',
   },
@@ -669,7 +671,7 @@ patientCell: {
     padding:3,
     paddingLeft:7,
     marginBottom: 5,
-    width: 305,
+    width: 285,
     height: 23,
   },
    medicationBlock: {

@@ -102,7 +102,7 @@ const CaregiverProfile = () => {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
+      <View testID="loading-indicator" style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
         <ActivityIndicator size="large" color="#2d53c8" />
       </View>
     );
@@ -132,6 +132,7 @@ const CaregiverProfile = () => {
           <Icon name="arrow-back" size={22} color="#2d53c8" />
         </TouchableOpacity>
         <TouchableOpacity
+          testID="delete-account-button"
           style={styles.deleteIconButton}
           onPress={handleDeleteAccount}
         >
@@ -145,6 +146,7 @@ const CaregiverProfile = () => {
           <Icon name="person-circle-outline" size={100} color="#8EA7E9" />
           {/* Edit icon */}
           <TouchableOpacity
+            testID="edit-profile-button"
             style={styles.editIconButton}
             onPress={() => navigation.navigate('EditProfile', { email: profile.email, id: profile._id })}
           >
@@ -160,6 +162,7 @@ const CaregiverProfile = () => {
         <View style={styles.toggleRow}>
           <Text style={styles.availableText}>Available?</Text>
           <Switch
+            testID="availability-toggle"
             value={profile?.isAvailable ?? true}
             onValueChange={handleAvailabilityToggle}
           />

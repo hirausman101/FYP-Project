@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, Image, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, Image, TextInput, TouchableOpacity, StyleSheet, Modal } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import axios from 'axios';
 import Feather from 'react-native-vector-icons/Feather';
@@ -12,16 +12,24 @@ function Signup() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalMessage, setModalMessage] = useState('');
 
   // Simple validation
   const isNameValid = name.length > 1;
   const isEmailValid = /^[\w.%+-]+@[\w.-]+\.[a-zA-Z]{2,}$/.test(email);
   const isPasswordValid = /(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{6,}/.test(password);
 
+  // Replace Alert.alert with this function
+  const showCustomAlert = (message: string) => {
+    setModalMessage(message);
+    setModalVisible(true);
+  };
+
   const handleSubmit = () => {
-    if (!isNameValid) return Alert.alert("Please enter a valid name.");
-    if (!isEmailValid) return Alert.alert("Please enter a valid email address.");
-    if (!isPasswordValid) return Alert.alert("Password must be at least 6 characters long and include uppercase, lowercase, and a digit.");
+    if (!isNameValid) return showCustomAlert("Please enter a valid name.");
+    if (!isEmailValid) return showCustomAlert("Please enter a valid email address.");
+    if (!isPasswordValid) return showCustomAlert("Password must be at least 6 characters long and include uppercase, lowercase, and a digit.");
 
     const userData = { name, email, password, userType: "Caregiver" };
 
@@ -30,19 +38,22 @@ function Signup() {
     })
       .then(res => {
         if (res.data.status === 'ok') {
-          Alert.alert('Registered Successfully!!');
-          navigation.replace('Login');
+          showCustomAlert('Registered Successfully!!');
+          setTimeout(() => {
+            setModalVisible(false);
+            navigation.replace('Login');
+          }, 1200);
         } else {
-          Alert.alert('Registration failed. Please try again.');
+          showCustomAlert('Registration failed. Please try again.');
         }
       })
       .catch(error => {
         if (error.response?.data?.error) {
-          Alert.alert("Error", error.response.data.error);
+          showCustomAlert(error.response.data.error);
         } else if (error.message) {
-          Alert.alert("Error", error.message);
+          showCustomAlert(error.message);
         } else {
-          Alert.alert("Error", "Something went wrong. Please try again later.");
+          showCustomAlert("Something went wrong. Please try again later.");
         }
       });
   };
@@ -87,6 +98,21 @@ function Signup() {
       <TouchableOpacity onPress={() => navigation.navigate('Login')}>
         <Text style={styles.link}>Already have an account? Login</Text>
       </TouchableOpacity>
+      <Modal
+        visible={modalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalText}>{modalMessage}</Text>
+            <TouchableOpacity onPress={() => setModalVisible(false)}>
+              <Text style={styles.modalButton}>OK</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -147,5 +173,30 @@ const styles = StyleSheet.create({
   logoContainer: {
     alignItems: 'center',
     marginBottom: 20,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 24,
+    alignItems: 'center',
+    minWidth: 220,
+  },
+  modalText: {
+    fontSize: 14, // Smaller text size
+    color: '#333',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  modalButton: {
+    color: '#8a61c7',
+    fontWeight: 'bold',
+    fontSize: 16,
+    marginTop: 8,
   },
 });

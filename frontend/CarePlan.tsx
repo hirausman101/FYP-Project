@@ -310,7 +310,7 @@ const CarePlan = ({ route }) => {
               backgroundColor: '#e5f0ff',
               borderRadius: 12,
               padding: 12,
-              width: 150,
+              width: 140,
               height:130,
               justifyContent: 'flex-start',
               shadowColor: '#000',
@@ -331,8 +331,8 @@ const CarePlan = ({ route }) => {
                     style={{
                       backgroundColor: 'white',
                       borderRadius: 8,
-                      padding: 6,
-                      marginBottom: 4,
+                      padding: 3,
+                      marginTop: 4,
                     }}
                   >
                     <Text
@@ -1016,13 +1016,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 15,
-    gap: 10,
+    gap: 8,
   },
   infoCard: {
     backgroundColor: '#2d53c8',
     borderRadius: 15,
     paddingLeft: 10,
-    width: 150,
+    width: 145,
     height:130,
     justifyContent: 'flex-start',
     paddingTop: 7,
